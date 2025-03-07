@@ -7,78 +7,82 @@ import re
 from ansi2html import Ansi2HTMLConverter
 
 # Streamlit App Title
-st.title("🚖 Gymnasium's Taxi Problem")
-
-# Hyperparameters
-learning_rate = 0.9
-discount_rate = 0.8
-epsilon = 1.0
-decay_rate = 0.005
-num_episodes = 1000
-max_steps = 99  # Per episode
+st.title("🚖 Solving the Taxi Problem using Reinforcement Learning")
 
 url = "https://gymnasium.farama.org/environments/toy_text/taxi/"
-st.write("Gymnasium's official Taxi environment [documentation](%s)" % url)
+
+st.write(f"Gymnasium's official Taxi environment [documentation]({url})")
+
+# --- Sliders for hyperparameters ---
+learning_rate = st.slider(
+    "Learning Rate (Alpha)",
+    min_value=0.01,
+    max_value=1.0,
+    value=0.9,
+    step=0.01,
+    help="Step size for the Q-value updates.",
+)
+
+discount_rate = st.slider(
+    "Discount Rate (Gamma)",
+    min_value=0.01,
+    max_value=1.0,
+    value=0.8,
+    step=0.01,
+    help="How much future rewards are discounted."
+)
+
+epsilon = st.slider(
+    "Exploration Rate (Epsilon)",
+    min_value=0.0,
+    max_value=1.0,
+    value=1.0,
+    step=0.01,
+    help="Probability of choosing a random action."
+)
+
+decay_rate = st.slider(
+    "Decay Rate for Epsilon",
+    min_value=0.0,
+    max_value=0.05,
+    value=0.005,
+    step=0.001,
+    help="Exponential decay applied to epsilon each episode."
+)
+
+num_episodes = st.slider(
+    "Number of Episodes",
+    min_value=50,
+    max_value=2000,
+    value=1000,
+    step=50,
+    help="How many episodes to train over."
+)
+
+max_steps = st.slider(
+    "Max Steps per Episode",
+    min_value=50,
+    max_value=1000,
+    value=99,
+    step=10,
+    help="Maximum steps allowed in one episode."
+)
+# -----------------------------------------------------
+
 st.write(""" 
-Choose which algorithm you want to use, and also use the sliders to adjust the learning parameters.""")
-QLearning = st.checkbox("Q-Learning", value=True)
-Random = st.checkbox("Random", value=False)
+The main goal is to pick up a passenger at one location (Blue) and drop them off at another (Magenta). The taxi will receive a reward for successfully delivering the passenger, and a penalty for executing illegal actions. The episode ends when the passenger is dropped off at the destination.
 
-# Initialize ANSI to HTML converter
-conv = Ansi2HTMLConverter()
+**Rewards**:
 
-def render_env_as_text(env):
-    """ Capture ANSI-rendered Taxi-v3 output, convert ANSI codes to HTML, and display it in Streamlit using st.markdown() """
-    ansi_text = env.render()
+-1 per step unless other reward is triggered.
 
-    # Convert ANSI text to HTML
-    html_output = conv.convert(ansi_text)
-    # Display the grid with HTML rendering
-    taxi_display.markdown(f"<div style='font-family:monospace; white-space: pre;'>{html_output}</div>", unsafe_allow_html=True)
++20 delivering passenger.
 
-def train_q_learning():
-    """ Trains the Q-learning agent and updates the display dynamically in Streamlit. """
-    global epsilon  # Keep track of epsilon decay across runs
+-10 executing “pickup” and “drop-off” actions illegally.
 
-    env = gym.make('Taxi-v3', render_mode='ansi')  # Use text-based ANSI rendering
-    state_size = env.observation_space.n
-    action_size = env.action_space.n
-
-    # Initialize Q-table
-    qtable = np.zeros((state_size, action_size))
-
-    for episode in range(num_episodes):
-        state, _ = env.reset()
-        done = False
-
-        for step in range(max_steps):
-            # Exploration-exploitation tradeoff
-            if random.uniform(0, 1) < epsilon:
-                action = env.action_space.sample()  # Explore
-            else:
-                action = np.argmax(qtable[state, :])  # Exploit
-
-            new_state, reward, done, truncated, _ = env.step(action)
-            new_state = new_state if isinstance(new_state, int) else new_state[0]
-
-            # Q-learning Update Rule
-            qtable[state, action] = qtable[state, action] + learning_rate * (
-                reward + discount_rate * np.max(qtable[new_state, :]) - qtable[state, action]
-            )
-            # Update Streamlit logs (Single Line)
-            log_placeholder1.markdown(f"🎬 **Episode {episode+1}/{num_episodes}**", unsafe_allow_html=True)
-
-            state = new_state
-            if done or truncated:
-                break
-
-        # Decay epsilon
-        epsilon = np.exp(-decay_rate * episode)
-    # Once training is finished, display the final Q-table exactly once
-    st.success(f"✅ Training completed over {num_episodes} episodes!")
-    st.write("📊 Q-Table after training:")
-    st.dataframe(qtable, use_container_width=True)
-    st.write("""
+An action that results a noop, like moving into a wall, will incur the time step penalty. Noops can be avoided by sampling the action_mask returned in info.
+""")
+st.write("""
     **How to read the Q-Table**:
 
     There are **500 discrete states** since there are 25 taxi positions, 5 possible locations of the passenger (including the case when the passenger is in the taxi), and 4 destination locations. Destinations on the map are represented with the first letter of the color.
@@ -96,6 +100,64 @@ def train_q_learning():
     - 2: Yellow
     - 3: Blue
     """)
+
+st.divider()
+# Initialize ANSI to HTML converter
+conv = Ansi2HTMLConverter()
+
+def render_env_as_text(env):
+    """ Capture ANSI-rendered Taxi-v3 output, convert ANSI codes to HTML, and display it in Streamlit using st.markdown() """
+    ansi_text = env.render()
+
+    # Convert ANSI text to HTML
+    html_output = conv.convert(ansi_text)
+    # Display the grid with HTML rendering
+    taxi_display.markdown(f"<div style='font-family:monospace; white-space: pre;'>{html_output}</div>", unsafe_allow_html=True)
+
+def train_q_learning():
+    """ Trains the Q-learning agent and updates the display dynamically in Streamlit. """
+    global epsilon  # Keep track of epsilon decay across runs
+
+    # Create the environment in ANSI mode
+    env = gym.make('Taxi-v3', render_mode='ansi')
+    state_size = env.observation_space.n
+    action_size = env.action_space.n
+
+    # Initialize Q-table
+    qtable = np.zeros((state_size, action_size))
+
+    # Training loop
+    for episode in range(num_episodes):
+        state, _ = env.reset()
+        done = False
+
+        for step in range(max_steps):
+            # Exploration vs. Exploitation
+            if random.uniform(0, 1) < epsilon:
+                action = env.action_space.sample()  # Explore
+            else:
+                action = np.argmax(qtable[state, :])  # Exploit
+
+            new_state, reward, done, truncated, _ = env.step(action)
+            new_state = new_state if isinstance(new_state, int) else new_state[0]
+
+            # Q-learning Update
+            qtable[state, action] += learning_rate * (
+                reward + discount_rate * np.max(qtable[new_state, :]) - qtable[state, action]
+            )
+
+            state = new_state
+            if done or truncated:
+                break
+
+        # Decay epsilon after each episode
+        if epsilon > 0:
+            epsilon = np.exp(-decay_rate * episode)
+
+    # Training finished
+    st.success(f"✅ Training completed over {num_episodes} episodes!")
+    st.write("📊 Q-Table after training:")
+    st.dataframe(qtable, use_container_width=True)
     return qtable, env
 
 
@@ -104,74 +166,64 @@ def run_trained_agent(qtable):
     st.subheader("🏁 Running Trained Agent...")
     
     # Reset the environment to get a fresh starting state
-    env = gym.make('Taxi-v3', render_mode='ansi')  # Use text-based ANSI rendering
-    state, _ = env.reset()
+    env = gym.make('Taxi-v3', render_mode='ansi')
+    state, info = env.reset()
+    action_mask = info.get("action_mask", None)
     done = False
     rewards = 0
 
     for step in range(50):
-        action = np.argmax(qtable[state, :])
-        new_state, reward, done, truncated, _ = env.step(action)
+        # If there's an action_mask, pick from valid actions
+        if action_mask is not None:
+            valid_actions = [a for a, valid in enumerate(action_mask) if valid == 1]
+            # Exploit Q-table among valid actions
+            best_action = None
+            best_q = float('-inf')
+            for a in valid_actions:
+                if qtable[state, a] > best_q:
+                    best_q = qtable[state, a]
+                    best_action = a
+            action = best_action
+        else:
+            # Fallback if action_mask not present
+            action = np.argmax(qtable[state, :])
+
+        new_state, reward, done, truncated, info = env.step(action)
+        new_state = new_state if isinstance(new_state, int) else new_state[0]
+        action_mask = info.get("action_mask", None)
         rewards += reward
 
         # Display live updates of the agent's actions and score
-        log_placeholder2.markdown(f"🚀 **Step {step+1}:** Action {action}, Reward {reward}, Total Score: {rewards}", unsafe_allow_html=True)
+        log_placeholder2.markdown(
+            f"🚀 **Step {step+1}:** Action {action}, Reward {reward}, Total Score: {rewards}",
+            unsafe_allow_html=True
+        )
 
-        # Render the grid with the highlighted taxi
+        # Render the grid with the updated state
         render_env_as_text(env)
 
         state = new_state
         if done or truncated:
             break
         
-        time.sleep(0.5)  # Small delay to make logs readable
+        time.sleep(0.3)  # Slow down for readability
 
     st.success("🎉 Trained agent finished the episode!")
 
 def RandomSample():
     st.warning("For future implementation")
-    # # create Taxi environment
-    # env = gym.make('Taxi-v3')
+    # Example code to run random actions
 
-    # # create a new instance of taxi, and get the initial state
-    # state = env.reset()
-
-    # num_steps = 99
-    # for s in range(num_steps+1):
-    #     print(f"step: {s} out of {num_steps}")
-
-    #     # sample a random action from the list of available actions
-    #     action = env.action_space.sample()
-
-    #     # perform this action on the environment
-    #     env.step(action)
-
-    #     # print the new state
-    #     render_env_as_text(env)
-
-    # # end this instance of the taxi environment
-    # env.close()
-
-# Streamlit Placeholders for Live Updates
+# Streamlit Placeholders
 log_placeholder1 = st.empty()
-
-# Streamlit Button to Train & Run the Agent
-if st.button("🚀 Train Agent"):
-    if QLearning and Random:
-        st.warning("Please select only one algorithm to train the agent!")
-    elif QLearning:
-        qtable, env = train_q_learning()
-        st.session_state["qtable"] = qtable
-    elif Random:
-        RandomSample()
-    else:
-        st.warning("Please select an algorithm to train the agent!")
-        
 log_placeholder2 = st.empty()
 taxi_display = st.empty()
+
+if st.button("🚀 Train Agent"):
+    qtable, env = train_q_learning()
+    st.session_state["qtable"] = qtable
     
 if st.button("🏁 Run Trained Agent"):
-    # Retrieve the qtable from session state
     if "qtable" in st.session_state:
         qtable = st.session_state["qtable"]
         run_trained_agent(qtable)
