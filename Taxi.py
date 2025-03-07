@@ -11,97 +11,69 @@ st.title("🚖 Solving the Taxi Problem using Reinforcement Learning")
 
 url = "https://gymnasium.farama.org/environments/toy_text/taxi/"
 
-st.write(f"Gymnasium's official Taxi environment [documentation]({url})")
+st.write("""
+         In this project, we explore different methods to solve the Taxi Problem using Reinforcement Learning and how they compare between them.
+        Currently, only Q-Learning is implemented.
+        """)
+st.write(f"For more information, please refer to Gymnasium's official Taxi environment [documentation]({url}).")
 
 # --- Sliders for hyperparameters ---
-learning_rate = st.slider(
-    "Learning Rate (Alpha)",
-    min_value=0.01,
-    max_value=1.0,
-    value=0.9,
-    step=0.01,
-    help="Step size for the Q-value updates.",
-)
+with st.expander("Hyperparameters"):
+    learning_rate = st.slider(
+        "Learning Rate (Alpha)",
+        min_value=0.01,
+        max_value=1.0,
+        value=0.9,
+        step=0.01,
+        help="Step size for the Q-value updates.",
+    )
 
-discount_rate = st.slider(
-    "Discount Rate (Gamma)",
-    min_value=0.01,
-    max_value=1.0,
-    value=0.8,
-    step=0.01,
-    help="How much future rewards are discounted."
-)
+    discount_rate = st.slider(
+        "Discount Rate (Gamma)",
+        min_value=0.01,
+        max_value=1.0,
+        value=0.8,
+        step=0.01,
+        help="How much future rewards are discounted."
+    )
 
-epsilon = st.slider(
-    "Exploration Rate (Epsilon)",
-    min_value=0.0,
-    max_value=1.0,
-    value=1.0,
-    step=0.01,
-    help="Probability of choosing a random action."
-)
+    epsilon = st.slider(
+        "Exploration Rate (Epsilon)",
+        min_value=0.0,
+        max_value=1.0,
+        value=1.0,
+        step=0.01,
+        help="Probability of choosing a random action."
+    )
 
-decay_rate = st.slider(
-    "Decay Rate for Epsilon",
-    min_value=0.0,
-    max_value=0.05,
-    value=0.005,
-    step=0.001,
-    help="Exponential decay applied to epsilon each episode."
-)
+    decay_rate = st.slider(
+        "Decay Rate for Epsilon",
+        min_value=0.0,
+        max_value=0.05,
+        value=0.005,
+        step=0.001,
+        help="Exponential decay applied to epsilon each episode."
+    )
 
-num_episodes = st.slider(
-    "Number of Episodes",
-    min_value=50,
-    max_value=2000,
-    value=1000,
-    step=50,
-    help="How many episodes to train over."
-)
+    num_episodes = st.slider(
+        "Number of Episodes",
+        min_value=50,
+        max_value=2000,
+        value=1000,
+        step=50,
+        help="How many episodes to train over."
+    )
 
-max_steps = st.slider(
-    "Max Steps per Episode",
-    min_value=50,
-    max_value=1000,
-    value=99,
-    step=10,
-    help="Maximum steps allowed in one episode."
-)
+    max_steps = st.slider(
+        "Max Steps per Episode",
+        min_value=50,
+        max_value=1000,
+        value=99,
+        step=10,
+        help="Maximum steps allowed in one episode."
+    )
 # -----------------------------------------------------
-
-st.write(""" 
-The main goal is to pick up a passenger at one location (Blue) and drop them off at another (Magenta). The taxi will receive a reward for successfully delivering the passenger, and a penalty for executing illegal actions. The episode ends when the passenger is dropped off at the destination.
-
-**Rewards**:
-
--1 per step unless other reward is triggered.
-
-+20 delivering passenger.
-
--10 executing “pickup” and “drop-off” actions illegally.
-
-An action that results a noop, like moving into a wall, will incur the time step penalty. Noops can be avoided by sampling the action_mask returned in info.
-""")
-st.write("""
-    **How to read the Q-Table**:
-
-    There are **500 discrete states** since there are 25 taxi positions, 5 possible locations of the passenger (including the case when the passenger is in the taxi), and 4 destination locations. Destinations on the map are represented with the first letter of the color.
-
-    **Passenger locations**:
-    - 0: Red
-    - 1: Green
-    - 2: Yellow
-    - 3: Blue
-    - 4: In taxi
-
-    **Destinations**:
-    - 0: Red
-    - 1: Green
-    - 2: Yellow
-    - 3: Blue
-    """)
-
-st.divider()
+log_placeholder1 = st.empty()
 # Initialize ANSI to HTML converter
 conv = Ansi2HTMLConverter()
 
@@ -147,9 +119,10 @@ def train_q_learning():
             )
 
             state = new_state
+            log_placeholder1.text(f"🚀 Training Episode {episode+1}/{num_episodes}, Step {step+1}/{max_steps}")
             if done or truncated:
                 break
-
+            time.sleep(0.00001)
         # Decay epsilon after each episode
         if epsilon > 0:
             epsilon = np.exp(-decay_rate * episode)
@@ -160,6 +133,46 @@ def train_q_learning():
     st.dataframe(qtable, use_container_width=True)
     return qtable, env
 
+if st.button("🚀 Train Agent"):
+    qtable, env = train_q_learning()
+    st.session_state["qtable"] = qtable
+    
+with st.expander("Rewards"):
+    st.write(""" 
+    The main goal is to pick up a passenger at one location (Blue) and drop them off at another (Magenta). The taxi will receive a reward for successfully delivering the passenger, and a penalty for executing illegal actions. The episode ends when the passenger is dropped off at the destination.
+
+    **Rewards**:
+
+    -1 per step unless other reward is triggered.
+
+    +20 delivering passenger.
+
+    -10 executing “pickup” and “drop-off” actions illegally.
+
+    An action that results a noop, like moving into a wall, will incur the time step penalty.
+    """)
+    
+with st.expander("How to read the Q-Table"):
+    st.write("""
+    **How to read the Q-Table**:
+
+    There are **500 discrete states** since there are 25 taxi positions, 5 possible locations of the passenger (including the case when the passenger is in the taxi), and 4 destination locations. Destinations on the map are represented with the first letter of the color.
+
+    **Passenger locations**:
+    - 0: Red
+    - 1: Green
+    - 2: Yellow
+    - 3: Blue
+    - 4: In taxi
+
+    **Destinations**:
+    - 0: Red
+    - 1: Green
+    - 2: Yellow
+    - 3: Blue
+    """)
+
+st.divider()
 
 def run_trained_agent(qtable):
     """ Runs the trained Q-learning agent in Streamlit and updates display dynamically. """
@@ -206,23 +219,20 @@ def run_trained_agent(qtable):
         if done or truncated:
             break
         
-        time.sleep(0.3)  # Slow down for readability
-
-    st.success("🎉 Trained agent finished the episode!")
+        time.sleep(0.5)  # Slow down for readability
+    if done:
+        st.success(f"🎉 Trained agent finished the episode with total reward of {rewards}!")
+    else:
+        st.warning("⚠️ Trained agent reached the maximum number of steps.")
 
 def RandomSample():
     st.warning("For future implementation")
     # Example code to run random actions
 
 # Streamlit Placeholders
-log_placeholder1 = st.empty()
 log_placeholder2 = st.empty()
 taxi_display = st.empty()
 
-if st.button("🚀 Train Agent"):
-    qtable, env = train_q_learning()
-    st.session_state["qtable"] = qtable
-    
 if st.button("🏁 Run Trained Agent"):
     if "qtable" in st.session_state:
         qtable = st.session_state["qtable"]
