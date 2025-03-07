@@ -9,6 +9,14 @@ url = "https://gymnasium.farama.org/environments/toy_text/taxi/"
 st.sidebar.header("Official Documentation") 
 st.sidebar.write(f"For more information, please refer to Gymnasium's official Taxi environment [documentation]({url}).")
 
+st.header("Update formula")
+st.latex(r"""
+Q(s, a) \leftarrow Q(s, a) + \alpha 
+\Bigl( 
+    r + \gamma \max_{a^\prime} Q\bigl(s^\prime, a^\prime\bigr) 
+    \;-\; Q(s, a) 
+\Bigr)
+""")
 # --- Sliders for hyperparameters ---
 st.header("Hyperparameters")
 
