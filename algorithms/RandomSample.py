@@ -11,6 +11,7 @@ st.sidebar.write(f"For more information, please refer to Gymnasium's official Ta
 st.header("Random Sample")
 st.write("In this section, we will run a simulation with a random agent that samples actions from the environment's action space.")
 st.write("Due to the random sampling, the agent can remain in the same episode indefinitely, effectively hindering learning and causing it to aimlessly explore the environment instead.")
+
 log_placeholder = st.empty()
 taxi_display = st.empty()
 conv = Ansi2HTMLConverter()
