@@ -4,11 +4,14 @@ import random
 import streamlit as st
 import time
 from ansi2html import Ansi2HTMLConverter
+from matplotlib import pyplot as plt
 
 url = "https://gymnasium.farama.org/environments/toy_text/taxi/"
 st.sidebar.header("Official Documentation") 
 st.sidebar.write(f"For more information, please refer to Gymnasium's official Taxi environment [documentation]({url}).")
 
+qlearn_url = "https://en.wikipedia.org/wiki/Q-learning"
+st.write(f"For more information, check out the wikipedia page for [Q-Learning]({qlearn_url}).")
 st.header("Update formula")
 st.latex(r"""
 Q(s, a) \leftarrow Q(s, a) + \alpha 
@@ -17,7 +20,7 @@ Q(s, a) \leftarrow Q(s, a) + \alpha
     \;-\; Q(s, a) 
 \Bigr)
 """)
-# --- Sliders for hyperparameters ---
+
 st.header("Hyperparameters")
 
 st.write("Feel free to adjust the hyperparameters above to see how they affect the training process.")
@@ -75,20 +78,10 @@ max_steps = st.slider(
     step=10,
     help="Maximum steps allowed in one episode."
 )
-# -----------------------------------------------------
 
 log_placeholder1 = st.empty()
 # Initialize ANSI to HTML converter
 conv = Ansi2HTMLConverter()
-
-def render_env_as_text(env):
-    """ Capture ANSI-rendered Taxi-v3 output, convert ANSI codes to HTML, and display it in Streamlit using st.markdown() """
-    ansi_text = env.render()
-
-    # Convert ANSI text to HTML
-    html_output = conv.convert(ansi_text)
-    # Display the grid with HTML rendering
-    taxi_display.markdown(f"<div style='font-family:monospace; white-space: pre;'>{html_output}</div>", unsafe_allow_html=True)
 
 def train_q_learning():
     """ Trains the Q-learning agent and updates the display dynamically in Streamlit. """
@@ -101,14 +94,20 @@ def train_q_learning():
 
     # Initialize Q-table
     qtable = np.zeros((state_size, action_size))
+    
+    # List to track total reward per episode
+    episode_rewards = []
 
     # Training loop
     for episode in range(num_episodes):
         state, _ = env.reset()
         done = False
 
+        # Track the total reward this episode
+        total_reward = 0
+
         for step in range(max_steps):
-            # Exploration vs. Exploitation
+            # Exploration vs. Exploitation - here we use epsilon-greedy with exponentially decaying epsilon
             if random.uniform(0, 1) < epsilon:
                 action = env.action_space.sample()  # Explore
             else:
@@ -123,9 +122,16 @@ def train_q_learning():
             )
 
             state = new_state
+            total_reward += reward
+            
+            # Update training status in Streamlit
             log_placeholder1.text(f"🚀 Training Episode {episode+1}/{num_episodes}, Step {step+1}/{max_steps}")
             if done or truncated:
                 break
+        
+        # Store the total reward for current episode
+        episode_rewards.append(total_reward)
+        
         # Decay epsilon after each episode
         if epsilon > 0:
             epsilon = np.exp(-decay_rate * episode)
@@ -133,7 +139,25 @@ def train_q_learning():
     # Training finished
     log_placeholder1.text("")
     st.success(f"✅ Training completed over {num_episodes} episodes!")
+        
+    # Set up plot of cumulative rewards per episode
+    fig, ax = plt.subplots()
+    ax.plot(episode_rewards, label="Q-Learning")
+    ax.set_title("Cumulative Reward per Episode")
+    ax.set_xlabel("Episode")
+    ax.set_ylabel("Total Reward")
+    ax.legend()
+    
+    return qtable, env, fig
+
+if st.button("🚀 Train Agent"):
+    qtable, env, fig = train_q_learning()
+    st.session_state["qtable"] = qtable
+    st.session_state["fig"] = fig
+    
+if "qtable" in st.session_state and st.session_state["qtable"] is not None:
     st.write("📊 Q-Table after training:")
+    qtable = st.session_state["qtable"]
     st.dataframe(qtable, use_container_width=True)
     with st.expander("How to read the Q-Table"):
         st.write("""
@@ -152,13 +176,22 @@ def train_q_learning():
         - 2: Yellow
         - 3: Blue
         """)
-    return qtable, env
+        
+if "fig" in st.session_state and st.session_state["fig"] is not None:
+    st.pyplot(st.session_state["fig"])
 
-if st.button("🚀 Train Agent"):
-    qtable, env = train_q_learning()
-    st.session_state["qtable"] = qtable
+#-------------------------- Simulation --------------------------#
 
 st.divider()
+
+def render_env_as_text(env):
+    """ Capture ANSI-rendered Taxi-v3 output, convert ANSI codes to HTML, and display it in Streamlit using st.markdown() """
+    ansi_text = env.render()
+
+    # Convert ANSI text to HTML
+    html_output = conv.convert(ansi_text)
+    # Display the grid with HTML rendering
+    taxi_display.markdown(f"<div style='font-family:monospace; white-space: pre;'>{html_output}</div>", unsafe_allow_html=True)
 
 def run_trained_agent(qtable):
     # Reset the environment to get a fresh starting state
@@ -213,7 +246,7 @@ log_placeholder2 = st.empty()
 taxi_display = st.empty()
 
 if st.button("🏁 Run a simulation with the trained agent"):
-    if "qtable" in st.session_state:
+    if "qtable" in st.session_state and st.session_state["qtable"] is not None:
         qtable = st.session_state["qtable"]
         run_trained_agent(qtable)
     else:
