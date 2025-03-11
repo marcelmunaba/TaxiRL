@@ -74,7 +74,7 @@ max_steps = st.slider(
     "Max Steps per Episode",
     min_value=50,
     max_value=1000,
-    value=99,
+    value=100,
     step=10,
     help="Maximum steps allowed in one episode."
 )
@@ -159,7 +159,7 @@ if "qtable" in st.session_state and st.session_state["qtable"] is not None:
     st.write("📊 Q-Table after training:")
     qtable = st.session_state["qtable"]
     st.dataframe(qtable, use_container_width=True)
-    with st.expander("How to read the Q-Table"):
+    with st.expander("Reading the Q-Table"):
         st.write("""
         There are **500 discrete states** since there are 25 taxi positions, 5 possible locations of the passenger (including the case when the passenger is in the taxi), and 4 destination locations. Destinations on the map are represented with the first letter of the color.
 

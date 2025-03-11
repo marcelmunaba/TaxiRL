@@ -5,7 +5,6 @@ import streamlit as st
 import time
 import re
 from ansi2html import Ansi2HTMLConverter
-import QLearning as ql
 
 url = "https://gymnasium.farama.org/environments/toy_text/taxi/"
 
